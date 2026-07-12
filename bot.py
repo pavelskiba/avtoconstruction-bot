@@ -123,6 +123,7 @@ async def handle_text(message: Message):
 
 async def main():
     await db.init_db()
+    await bot.delete_webhook(drop_pending_updates=True)
 
     app = webhook_server.create_app()
     runner = web.AppRunner(app)
