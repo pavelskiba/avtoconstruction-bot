@@ -3,6 +3,7 @@ import aiosqlite
 from config import DB_PATH
 
 STATE_NEW = "new"
+STATE_WELCOMED = "welcomed"
 STATE_WAITING_SUBSCRIBE = "waiting_subscribe"
 STATE_GUIDE_SENT = "guide_sent"
 

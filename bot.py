@@ -4,7 +4,7 @@ import logging
 from aiogram import F
 from aiogram.exceptions import TelegramAPIError
 from aiogram.enums import ChatMemberStatus
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 
 import config
 import database as db
@@ -56,19 +56,18 @@ async def handle_check_subscription(callback: CallbackQuery):
         "Спасибо за подписку! 🎉 Вот твое бесплатное вводное видео — посмотри, "
         "чтобы разобраться в основах смет и тендеров. 📹\n\n"
         f"{config.INTRO_VIDEO_URL}\n\n"
-        f"А вот и полезный гайд, который поможет закрепить материал: {config.GUIDE_PLACEHOLDER}\n\n"
+        "А вот и полезный гайд, который поможет закрепить материал:\n\n"
         "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах? Жми на кнопку ниже 👇",
         reply_markup=sale_keyboard(config.LANDING_URL),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 
-# --- триггер по ключевым словам (регистрируем последним - "catch-all" по тексту) ---
+# --- регистрируем последним - "catch-all" по любому тексту ---
 @dp.message(F.text)
 async def handle_text(message: Message):
     text = message.text.lower()
-    if not any(word in text for word in config.TRIGGER_WORDS):
-        return
-
+    has_trigger = any(word in text for word in config.TRIGGER_WORDS)
     user = await db.get_user(message.from_user.id)
 
     if user["state"] == db.STATE_NEW:
@@ -76,7 +75,13 @@ async def handle_text(message: Message):
             "Привет! Хочешь научиться составлять сметы и выигрывать тендеры? "
             "Начни с бесплатного видео. Просто напиши «смета» или «тендер»."
         )
+        await db.set_state(message.from_user.id, db.STATE_WELCOMED)
+        if not has_trigger:
+            return
         await asyncio.sleep(config.WELCOME_TO_SUBSCRIBE_DELAY)
+
+    if not has_trigger:
+        return
 
     await db.set_state(message.from_user.id, db.STATE_WAITING_SUBSCRIBE)
     await message.answer(subscribe_request_text(), reply_markup=subscribe_keyboard())

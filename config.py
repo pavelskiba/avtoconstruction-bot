@@ -14,8 +14,6 @@ LANDING_URL = "https://majestic-crumble-f5f364.netlify.app/"
 # Вводное бесплатное видео (ссылка на YouTube)
 INTRO_VIDEO_URL = "https://youtube.com/shorts/lLnLt4K5PSI?si=e2O0YZIbw-PLMqVF"
 
-GUIDE_PLACEHOLDER = "[ГАЙД]"
-
 TRIGGER_WORDS = ("тендер", "смета")
 
 # Пауза между приветствием и запросом на подписку (в секундах), чтобы бот
