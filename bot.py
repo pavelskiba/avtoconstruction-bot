@@ -78,9 +78,8 @@ async def handle_text(message: Message):
         )
         await asyncio.sleep(config.WELCOME_TO_SUBSCRIBE_DELAY)
 
-    if user["state"] in (db.STATE_NEW, db.STATE_WAITING_SUBSCRIBE):
-        await db.set_state(message.from_user.id, db.STATE_WAITING_SUBSCRIBE)
-        await message.answer(subscribe_request_text(), reply_markup=subscribe_keyboard())
+    await db.set_state(message.from_user.id, db.STATE_WAITING_SUBSCRIBE)
+    await message.answer(subscribe_request_text(), reply_markup=subscribe_keyboard())
 
 
 async def main():
