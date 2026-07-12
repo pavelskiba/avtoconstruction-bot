@@ -5,13 +5,10 @@ from aiogram import F
 from aiogram.exceptions import TelegramAPIError
 from aiogram.enums import ChatMemberStatus
 from aiogram.types import CallbackQuery, Message
-from aiohttp import web
 
 import config
 import database as db
-import webhook_server
 from telegram_client import bot, dp
-from funnel import send_course_video
 from keyboards import subscribe_keyboard, sale_keyboard
 
 logging.basicConfig(level=logging.INFO)
@@ -30,16 +27,6 @@ def subscribe_request_text() -> str:
         f"подпишись на наш канал: {config.CHANNEL_USERNAME}\n"
         "Затем нажми кнопку «Я подписался», и я пришлю тебе ссылку."
     )
-
-
-@dp.callback_query(F.data == "course_next")
-async def handle_course_next(callback: CallbackQuery):
-    await callback.answer()
-    user = await db.get_user(callback.from_user.id)
-    step = user["course_step"]
-    if step >= len(config.COURSE_VIDEOS):
-        return
-    await send_course_video(callback.from_user.id, step)
 
 
 @dp.callback_query(F.data == "check_subscription")
@@ -99,14 +86,6 @@ async def handle_text(message: Message):
 async def main():
     await db.init_db()
     await bot.delete_webhook(drop_pending_updates=True)
-
-    app = webhook_server.create_app()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, config.WEBHOOK_HOST, config.WEBHOOK_PORT)
-    await site.start()
-    log.info("Webhook server listening on %s:%s%s", config.WEBHOOK_HOST, config.WEBHOOK_PORT, config.WEBHOOK_PATH)
-
     await dp.start_polling(bot)
 
 
