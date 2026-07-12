@@ -63,25 +63,20 @@ async def handle_check_subscription(callback: CallbackQuery):
     )
 
 
-# --- регистрируем последним - "catch-all" по любому тексту ---
+# --- триггер по ключевым словам (регистрируем последним - "catch-all" по тексту) ---
 @dp.message(F.text)
 async def handle_text(message: Message):
     text = message.text.lower()
-    has_trigger = any(word in text for word in config.TRIGGER_WORDS)
-    user = await db.get_user(message.from_user.id)
-
-    if user["state"] == db.STATE_NEW:
-        await message.answer(
-            "Привет! Хочешь научиться составлять сметы и выигрывать тендеры? "
-            "Начни с бесплатного видео. Просто напиши «смета» или «тендер»."
-        )
-        await db.set_state(message.from_user.id, db.STATE_WELCOMED)
-        if not has_trigger:
-            return
-        await asyncio.sleep(config.WELCOME_TO_SUBSCRIBE_DELAY)
-
-    if not has_trigger:
+    if not any(word in text for word in config.TRIGGER_WORDS):
         return
+
+    await db.get_user(message.from_user.id)  # создаёт запись, если это новый пользователь
+
+    await message.answer(
+        "Привет! 👷‍♂️ Хочешь научиться составлять сметы и выигрывать тендеры? "
+        "Начни с бесплатного видео — дальше вся инфа"
+    )
+    await asyncio.sleep(config.WELCOME_TO_SUBSCRIBE_DELAY)
 
     await db.set_state(message.from_user.id, db.STATE_WAITING_SUBSCRIBE)
     await message.answer(subscribe_request_text(), reply_markup=subscribe_keyboard())
