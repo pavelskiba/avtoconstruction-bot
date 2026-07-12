@@ -9,11 +9,10 @@ from aiohttp import web
 
 import config
 import database as db
-import payments
 import webhook_server
 from telegram_client import bot, dp
 from funnel import send_course_video
-from keyboards import subscribe_keyboard, sale_keyboard, payment_link_keyboard
+from keyboards import subscribe_keyboard, sale_keyboard
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("avtoconstruction_bot")
@@ -64,39 +63,15 @@ async def handle_check_subscription(callback: CallbackQuery):
         )
         return
 
-    await db.set_state(callback.from_user.id, db.STATE_VIDEO_SENT)
-
-    await callback.message.answer(
-        "Спасибо за подписку! Вот твоё бесплатное вводное видео. "
-        "Посмотри, чтобы разобраться в основах смет и тендеров: "
-        f"{config.INTRO_VIDEO_URL}"
-    )
-
-    await asyncio.sleep(config.VIDEO_TO_GUIDE_DELAY)
-
     await db.set_state(callback.from_user.id, db.STATE_GUIDE_SENT)
+
     await callback.message.answer(
-        f"А вот и полезный гайд, который поможет закрепить материал: {config.GUIDE_PLACEHOLDER}\n"
-        "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах?",
-        reply_markup=sale_keyboard(),
-    )
-
-
-@dp.callback_query(F.data == "get_payment_link")
-async def handle_get_payment_link(callback: CallbackQuery):
-    await callback.answer()
-
-    try:
-        payment_url = await asyncio.to_thread(payments.create_payment, callback.from_user.id)
-    except Exception:
-        log.exception("Failed to create YooKassa payment for %s", callback.from_user.id)
-        await callback.message.answer("Не получилось создать ссылку на оплату, попробуй ещё раз.")
-        return
-
-    await db.set_state(callback.from_user.id, db.STATE_AWAITING_PAYMENT)
-    await callback.message.answer(
-        "Вот ссылка на оплату — доступ к курсу откроется сразу после оплаты:",
-        reply_markup=payment_link_keyboard(payment_url),
+        "Спасибо за подписку! 🎉 Вот твое бесплатное вводное видео — посмотри, "
+        "чтобы разобраться в основах смет и тендеров. 📹\n\n"
+        f"{config.INTRO_VIDEO_URL}\n\n"
+        f"А вот и полезный гайд, который поможет закрепить материал: {config.GUIDE_PLACEHOLDER}\n\n"
+        "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах? Жми на кнопку ниже 👇",
+        reply_markup=sale_keyboard(config.LANDING_URL),
     )
 
 

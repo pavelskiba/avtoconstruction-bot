@@ -4,9 +4,7 @@ from config import DB_PATH
 
 STATE_NEW = "new"
 STATE_WAITING_SUBSCRIBE = "waiting_subscribe"
-STATE_VIDEO_SENT = "video_sent"
 STATE_GUIDE_SENT = "guide_sent"
-STATE_AWAITING_PAYMENT = "awaiting_payment"
 STATE_PAID = "paid"
 
 

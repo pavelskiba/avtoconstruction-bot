@@ -9,16 +9,10 @@ def subscribe_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def sale_keyboard() -> InlineKeyboardMarkup:
+def sale_keyboard(url: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Ознакомиться подробнее", callback_data="get_payment_link")]
-        ]
+        inline_keyboard=[[InlineKeyboardButton(text="Ознакомиться подробнее", url=url)]]
     )
-
-
-def payment_link_keyboard(url: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Оплатить 990₽", url=url)]])
 
 
 def next_video_keyboard() -> InlineKeyboardMarkup:
