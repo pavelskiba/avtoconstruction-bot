@@ -73,8 +73,7 @@ async def handle_check_subscription(callback: CallbackQuery):
     await db.set_state(callback.from_user.id, db.STATE_WAITING_EMAIL)
     await callback.message.answer(
         "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах, и получить "
-        "доступ к курсу? Напиши свой email — на него придёт электронный чек об оплате, "
-        "и я пришлю ссылку на оплату."
+        "доступ к курсу? Напиши свой email, отправлю всю информацию о курсе"
     )
 
 
@@ -93,7 +92,8 @@ async def send_payment_offer(chat_id: int, user_id: int, email: str):
     await db.set_state(user_id, db.STATE_GUIDE_SENT)
     await bot.send_message(
         chat_id,
-        "Готово! Жми на кнопку ниже, чтобы оплатить курс 👇",
+        "Отлично! Снизу две кнопки, по одной можешь узнать всю информацию о курсе, "
+        "а по другой его оплатить",
         reply_markup=sale_keyboard(payment_url, config.LANDING_URL),
     )
 
