@@ -44,6 +44,9 @@ PAYMENT_AMOUNT = "990.00"
 PAYMENT_CURRENCY = "RUB"
 PAYMENT_DESCRIPTION = "Доступ к мини-курсу по созданию ИИ ботов для строительства"
 
+# УСН "доходы минус расходы" - НДС нет
+PAYMENT_VAT_CODE = 1
+
 # Куда ЮKassa вернёт пользователя после оплаты (страница-квитанция)
 PAYMENT_RETURN_URL = LANDING_URL
 

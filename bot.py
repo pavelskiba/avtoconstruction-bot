@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 
 from aiogram import F
 from aiogram.exceptions import TelegramAPIError
@@ -22,6 +23,8 @@ SUBSCRIBED_STATUSES = {
     ChatMemberStatus.ADMINISTRATOR,
     ChatMemberStatus.CREATOR,
 }
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def subscribe_request_text() -> str:
@@ -53,36 +56,67 @@ async def handle_check_subscription(callback: CallbackQuery):
         )
         return
 
-    await db.set_state(callback.from_user.id, db.STATE_GUIDE_SENT)
-
-    try:
-        payment_url = await asyncio.to_thread(payments.create_payment, callback.from_user.id)
-    except Exception:
-        log.exception("Failed to create payment for %s", callback.from_user.id)
-        await callback.message.answer(
-            "Не получилось подготовить ссылку на оплату, попробуй ещё раз чуть позже."
-        )
-        return
+    user = await db.get_user(callback.from_user.id)
 
     await callback.message.answer(
         "Спасибо за подписку! 🎉 Вот твое бесплатное вводное видео — посмотри, "
         "чтобы разобраться в основах смет и тендеров. 📹\n\n"
         f"{config.INTRO_VIDEO_URL}\n\n"
-        "А вот и полезный гайд, который поможет закрепить материал:\n\n"
-        "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах? Жми на кнопку ниже 👇",
-        reply_markup=sale_keyboard(payment_url, config.LANDING_URL),
+        "А вот и полезный гайд, который поможет закрепить материал:",
         link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
+
+    if user["email"]:
+        await send_payment_offer(callback.message.chat.id, callback.from_user.id, user["email"])
+        return
+
+    await db.set_state(callback.from_user.id, db.STATE_WAITING_EMAIL)
+    await callback.message.answer(
+        "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах, и получить "
+        "доступ к курсу? Напиши свой email — на него придёт электронный чек об оплате, "
+        "и я пришлю ссылку на оплату."
+    )
+
+
+async def send_payment_offer(chat_id: int, user_id: int, email: str):
+    try:
+        payment_url = await asyncio.to_thread(payments.create_payment, user_id, email)
+    except Exception:
+        log.exception("Failed to create payment for %s", user_id)
+        await bot.send_message(
+            chat_id,
+            "Не получилось подготовить ссылку на оплату, попробуй ещё раз чуть позже "
+            "— просто нажми ещё раз на кнопку «Я подписался».",
+        )
+        return
+
+    await db.set_state(user_id, db.STATE_GUIDE_SENT)
+    await bot.send_message(
+        chat_id,
+        "Готово! Жми на кнопку ниже, чтобы оплатить курс 👇",
+        reply_markup=sale_keyboard(payment_url, config.LANDING_URL),
     )
 
 
 # --- триггер по ключевым словам (регистрируем последним - "catch-all" по тексту) ---
 @dp.message(F.text)
 async def handle_text(message: Message):
+    user = await db.get_user(message.from_user.id)
+
+    if user["state"] == db.STATE_WAITING_EMAIL:
+        email = message.text.strip()
+        if not EMAIL_RE.match(email):
+            await message.answer(
+                "Похоже, это не email. Напиши в формате name@example.com"
+            )
+            return
+        await db.set_email(message.from_user.id, email)
+        await send_payment_offer(message.chat.id, message.from_user.id, email)
+        return
+
     text = message.text.lower()
     if not any(word in text for word in config.TRIGGER_WORDS):
         return
-
-    await db.get_user(message.from_user.id)  # создаёт запись, если это новый пользователь
 
     await message.answer(
         "Привет! 👷‍♂️ Хочешь научиться составлять сметы и выигрывать тендеры? "

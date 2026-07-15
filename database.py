@@ -4,6 +4,7 @@ from config import DB_PATH
 
 STATE_NEW = "new"
 STATE_WAITING_SUBSCRIBE = "waiting_subscribe"
+STATE_WAITING_EMAIL = "waiting_email"
 STATE_GUIDE_SENT = "guide_sent"
 STATE_PAID = "paid"
 
@@ -14,7 +15,8 @@ async def init_db():
             """
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
-                state TEXT NOT NULL DEFAULT 'new'
+                state TEXT NOT NULL DEFAULT 'new',
+                email TEXT
             )
             """
         )
@@ -26,6 +28,10 @@ async def init_db():
             )
             """
         )
+        try:
+            await conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        except aiosqlite.OperationalError:
+            pass  # колонка уже существует (миграция для БД, созданной раньше)
         await conn.commit()
 
 
@@ -41,13 +47,21 @@ async def get_user(user_id: int) -> dict:
             "INSERT INTO users (user_id, state) VALUES (?, ?)", (user_id, STATE_NEW)
         )
         await conn.commit()
-        return {"user_id": user_id, "state": STATE_NEW}
+        return {"user_id": user_id, "state": STATE_NEW, "email": None}
 
 
 async def set_state(user_id: int, state: str):
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(
             "UPDATE users SET state = ? WHERE user_id = ?", (state, user_id)
+        )
+        await conn.commit()
+
+
+async def set_email(user_id: int, email: str):
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            "UPDATE users SET email = ? WHERE user_id = ?", (email, user_id)
         )
         await conn.commit()
 
