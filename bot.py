@@ -5,9 +5,12 @@ from aiogram import F
 from aiogram.exceptions import TelegramAPIError
 from aiogram.enums import ChatMemberStatus
 from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
+from aiohttp import web
 
 import config
 import database as db
+import payments
+import webhook_server
 from telegram_client import bot, dp
 from keyboards import subscribe_keyboard, sale_keyboard
 
@@ -52,13 +55,22 @@ async def handle_check_subscription(callback: CallbackQuery):
 
     await db.set_state(callback.from_user.id, db.STATE_GUIDE_SENT)
 
+    try:
+        payment_url = await asyncio.to_thread(payments.create_payment, callback.from_user.id)
+    except Exception:
+        log.exception("Failed to create payment for %s", callback.from_user.id)
+        await callback.message.answer(
+            "Не получилось подготовить ссылку на оплату, попробуй ещё раз чуть позже."
+        )
+        return
+
     await callback.message.answer(
         "Спасибо за подписку! 🎉 Вот твое бесплатное вводное видео — посмотри, "
         "чтобы разобраться в основах смет и тендеров. 📹\n\n"
         f"{config.INTRO_VIDEO_URL}\n\n"
         "А вот и полезный гайд, который поможет закрепить материал:\n\n"
         "Хочешь узнать больше, как выигрывать тендеры и экономить на сметах? Жми на кнопку ниже 👇",
-        reply_markup=sale_keyboard(config.LANDING_URL),
+        reply_markup=sale_keyboard(payment_url, config.LANDING_URL),
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
@@ -85,6 +97,17 @@ async def handle_text(message: Message):
 async def main():
     await db.init_db()
     await bot.delete_webhook(drop_pending_updates=True)
+
+    app = webhook_server.create_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, config.WEBHOOK_HOST, config.WEBHOOK_PORT)
+    await site.start()
+    log.info(
+        "Webhook server listening on %s:%s%s",
+        config.WEBHOOK_HOST, config.WEBHOOK_PORT, config.WEBHOOK_PATH,
+    )
+
     await dp.start_polling(bot)
 
 

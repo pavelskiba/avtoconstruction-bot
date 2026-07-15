@@ -5,6 +5,7 @@ from config import DB_PATH
 STATE_NEW = "new"
 STATE_WAITING_SUBSCRIBE = "waiting_subscribe"
 STATE_GUIDE_SENT = "guide_sent"
+STATE_PAID = "paid"
 
 
 async def init_db():
@@ -14,6 +15,14 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
                 state TEXT NOT NULL DEFAULT 'new'
+            )
+            """
+        )
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS processed_payments (
+                payment_id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL
             )
             """
         )
@@ -41,3 +50,22 @@ async def set_state(user_id: int, state: str):
             "UPDATE users SET state = ? WHERE user_id = ?", (state, user_id)
         )
         await conn.commit()
+
+
+async def mark_payment_processed(payment_id: str, user_id: int) -> bool:
+    """Атомарно фиксирует payment_id как обработанный.
+
+    Возвращает True, только если запись создана этим вызовом впервые —
+    так повторные уведомления ЮKassa не приводят к повторной отправке
+    материалов курса.
+    """
+    async with aiosqlite.connect(DB_PATH) as conn:
+        try:
+            await conn.execute(
+                "INSERT INTO processed_payments (payment_id, user_id) VALUES (?, ?)",
+                (payment_id, user_id),
+            )
+            await conn.commit()
+            return True
+        except aiosqlite.IntegrityError:
+            return False
